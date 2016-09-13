@@ -514,6 +514,31 @@
         this.state.updateBound = null;
     };
 
+    function getBoundaryRelativeOffset(boundariesElement, baseElement) {
+        var boundaryRect = boundariesElement.getBoundingClientRect(),
+            baseElemRect = baseElement.getBoundingClientRect(),
+            relativeOffset = {
+                top: boundaryRect.top - baseElemRect.top,
+                bottom: boundaryRect.bottom - baseElemRect.top,
+                left: boundaryRect.left - baseElemRect.left,
+                right: boundaryRect.right - baseElemRect.left
+            };
+        var scrollParent = getScrollParent(baseElement);
+        while (scrollParent && boundariesElement.contains(scrollParent)) {
+            var scrollTop = scrollParent.scrollTop,
+                scrollLeft = scrollParent.scrollLeft;
+            relativeOffset.top -= scrollTop;
+            relativeOffset.bottom -= scrollTop;
+            relativeOffset.left -= scrollLeft;
+            relativeOffset.right -= scrollLeft;
+
+            var nextSrollParent = scrollParent.parentNode ? getScrollParent(scrollParent) : null;
+            scrollParent = scrollParent === nextSrollParent ? null : nextSrollParent;
+        }
+
+        return relativeOffset;
+    }
+
     /**
      * Computed the boundaries limits and return them
      * @method
@@ -543,19 +568,10 @@
             };
         } else if (boundariesElement === 'viewport') {
             var offsetParent = getOffsetParent(this._popper);
-            var scrollParent = getScrollParent(this._popper);
-            var offsetParentRect = getOffsetRect(offsetParent);
+            // adventure-yunfei: fix to correctly calculation 'viewport' boundaries RELATIVE to offset parent
+            var offsetParentRect = offsetParent.getBoundingClientRect();
 
-            // if the popper is fixed we don't have to substract scrolling from the boundaries
-            var scrollTop = data.offsets.popper.position === 'fixed' ? 0 : scrollParent.scrollTop;
-            var scrollLeft = data.offsets.popper.position === 'fixed' ? 0 : scrollParent.scrollLeft;
-
-            boundaries = {
-                top: 0 - (offsetParentRect.top - scrollTop),
-                right: root.document.documentElement.clientWidth - (offsetParentRect.left - scrollLeft),
-                bottom: root.document.documentElement.clientHeight - (offsetParentRect.top - scrollTop),
-                left: 0 - (offsetParentRect.left - scrollLeft)
-            };
+            boundaries = getBoundaryRelativeOffset(root.document.documentElement, offsetParent);
         } else {
             if (getOffsetParent(this._popper) === boundariesElement) {
                 boundaries = {
